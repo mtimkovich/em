@@ -58,6 +58,7 @@ func (e *Editor) Open(filename string) {
         return
     }
 
+    e.buffer = list.New()
     e.filename = filename
     size := 0
 
@@ -230,6 +231,11 @@ func (e *Editor) Prompt() {
         } else if len(nums) == 1 {
             start, _ = strconv.Atoi(nums[0])
             end = start
+        }
+    } else {
+        if len(text) > 1 && command != 'w' && command != 'e' {
+            e.Error("invalid command")
+            return
         }
     }
 
