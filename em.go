@@ -146,6 +146,7 @@ func (e *Editor) InsertBefore(other *list.List, line int) {
     for i, l := other.Len(), other.Back(); i > 0; i, l = i-1, l.Prev() {
         e.buffer.InsertBefore(l.Value, node)
         node = node.Prev()
+        e.setCurrentLine(e.currentLine-1)
     }
 }
 
@@ -155,11 +156,13 @@ func (e *Editor) InsertAfter(other *list.List, line int) {
     for i, l := 0, other.Front(); i < other.Len(); i, l = i+1, l.Next() {
         e.buffer.InsertAfter(l.Value, node)
         node = node.Next()
+        e.setCurrentLine(e.currentLine+1)
     }
 }
 
 func (e *Editor) Insert(line int, before bool) {
     input := readLines()
+    e.currentLine = line
 
     if before {
         e.InsertBefore(input, line)
@@ -168,6 +171,16 @@ func (e *Editor) Insert(line int, before bool) {
     }
 
     e.modified = true
+}
+
+func (e *Editor) setCurrentLine(line int) {
+    if line > e.buffer.Len() {
+        e.currentLine = e.buffer.Len()
+    } else if line <= 0 {
+        e.currentLine = 1
+    } else {
+        e.currentLine = line
+    }
 }
 
 func (e *Editor) Delete(start, end int) {
@@ -179,6 +192,7 @@ func (e *Editor) Delete(start, end int) {
         curr = next
     }
 
+    e.setCurrentLine(start)
     e.modified = true
 }
 
