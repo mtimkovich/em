@@ -4,7 +4,6 @@ import (
     "bufio"
     "container/list"
     "fmt"
-    "log"
     "os"
     "strings"
     "strconv"
@@ -26,6 +25,16 @@ func NewEditor() *Editor {
     return e
 }
 
+func (e *Editor) isModified() bool {
+    if e.modified {
+        e.Error("warning: file modified")
+        e.modified = false
+        return true
+    } else {
+        return false
+    }
+}
+
 func (e *Editor) Index(idx int) *list.Element {
     i := 0
     for l := e.buffer.Front(); l != nil; l = l.Next() {
@@ -41,9 +50,12 @@ func (e *Editor) Index(idx int) *list.Element {
 
 func (e *Editor) Open(filename string) {
     file, err := os.Open(filename)
+    defer file.Close()
 
     if err != nil {
-        log.Fatal(err)
+        fmt.Println(err)
+        e.Error("cannot open input file")
+        return
     }
 
     e.filename = filename
@@ -61,8 +73,29 @@ func (e *Editor) Open(filename string) {
 
     e.currentLine = i - 1
 
-    file.Close()
+    fmt.Println(size)
+}
 
+func (e *Editor) Write(filename string) {
+    file, err := os.Create(filename)
+    defer file.Close()
+
+    if err != nil {
+        fmt.Println(err)
+        e.Error("cannot write to file")
+        return
+    }
+
+    e.filename = filename
+    size := 0
+
+    for l := e.buffer.Front(); l != nil; l = l.Next() {
+        text := l.Value.(string)
+        count, _ := file.WriteString(text + "\n")
+        size += count
+    }
+
+    e.modified = false
     fmt.Println(size)
 }
 
@@ -116,9 +149,23 @@ func (e *Editor) InsertBefore(other *list.List, line int) {
     }
 }
 
-func (e *Editor) Insert(line int) {
+func (e *Editor) InsertAfter(other *list.List, line int) {
+    node := e.Index(line-1)
+
+    for i, l := 0, other.Front(); i < other.Len(); i, l = i+1, l.Next() {
+        e.buffer.InsertAfter(l.Value, node)
+        node = node.Next()
+    }
+}
+
+func (e *Editor) Insert(line int, before bool) {
     input := readLines()
-    e.InsertBefore(input, line)
+
+    if before {
+        e.InsertBefore(input, line)
+    } else {
+        e.InsertAfter(input, line)
+    }
 
     e.modified = true
 }
@@ -148,25 +195,28 @@ func (e *Editor) Prompt() {
         return
     }
 
-    command := rune(text[len(text)-1])
-    nrange := text
+    command := rune(text[0])
+    var start, end int
 
-    if unicode.IsLetter(command) {
-        nrange = text[:len(text)-1]
-    } else {
-        command = 'p'
-    }
+    if !unicode.IsLetter(command) {
+        command = rune(text[len(text)-1])
+        nrange := text
 
-    nums := strings.Split(nrange, ",")
-    start := 0
-    end := 0
+        if unicode.IsLetter(command) {
+            nrange = text[:len(text)-1]
+        } else {
+            command = 'p'
+        }
 
-    if len(nums) == 2 {
-        start, _ = strconv.Atoi(nums[0])
-        end, _ = strconv.Atoi(nums[1])
-    } else if len(nums) == 1 {
-        start, _ = strconv.Atoi(nums[0])
-        end = start
+        nums := strings.Split(nrange, ",")
+
+        if len(nums) == 2 {
+            start, _ = strconv.Atoi(nums[0])
+            end, _ = strconv.Atoi(nums[1])
+        } else if len(nums) == 1 {
+            start, _ = strconv.Atoi(nums[0])
+            end = start
+        }
     }
 
     if start == 0 || end == 0 {
@@ -185,21 +235,34 @@ func (e *Editor) Prompt() {
     case 'n':
         e.Print(start, end, true)
     case 'i':
-        e.Insert(end)
+        e.Insert(end, true)
+    case 'a':
+        e.Insert(end, false)
     case 'd':
         e.Delete(start, end)
     case 'c':
         e.Delete(start, end)
-        e.Insert(start)
+        e.Insert(start, true)
+    case 'e':
+        filename := strings.Split(text, " ")[1]
+
+        if !e.isModified() {
+            e.Open(filename)
+        }
+    case 'w':
+        filename := e.filename
+
+        if len(text) > 1 {
+            filename = strings.Split(text, " ")[1]
+        }
+
+        e.Write(filename)
     case 'h':
         if len(e.err) > 0 {
             fmt.Println(e.err)
         }
     case 'q':
-        if e.modified {
-            e.Error("warning: file modified")
-            e.modified = false
-        } else {
+        if !e.isModified() {
             os.Exit(0)
         }
     case 'Q':
