@@ -11,26 +11,26 @@ import (
     "unicode"
 )
 
-type Buffer struct {
-    lines *list.List
+type Editor struct {
+    buffer *list.List
     filename string
     currentLine int
     modified bool
     err string
 }
 
-func NewBuffer() *Buffer {
-    b := new(Buffer)
-    b.lines = list.New()
+func NewEditor() *Editor {
+    e := new(Editor)
+    e.buffer = list.New()
 
-    return b
+    return e
 }
 
-func (b *Buffer) Index(idx int) *list.Element {
+func (e *Editor) Index(idx int) *list.Element {
     i := 0
-    for e := b.lines.Front(); e != nil; e = e.Next() {
+    for l := e.buffer.Front(); l != nil; l = l.Next() {
         if i == idx {
-            return e
+            return l
         }
 
         i++
@@ -39,14 +39,14 @@ func (b *Buffer) Index(idx int) *list.Element {
     return nil
 }
 
-func (b *Buffer) Open(filename string) {
+func (e *Editor) Open(filename string) {
     file, err := os.Open(filename)
 
     if err != nil {
         log.Fatal(err)
     }
 
-    b.filename = filename
+    e.filename = filename
     size := 0
 
     scanner := bufio.NewScanner(file)
@@ -54,30 +54,30 @@ func (b *Buffer) Open(filename string) {
     i := 1
     for scanner.Scan() {
         text := scanner.Text()
-        size += len(text)
-        b.lines.PushBack(text)
+        size += len(text) + 1
+        e.buffer.PushBack(text)
         i++
     }
 
-    b.currentLine = i - 1
+    e.currentLine = i - 1
 
     file.Close()
 
     fmt.Println(size)
 }
 
-func (b *Buffer) Print(start, end int, numbers bool) {
+func (e *Editor) Print(start, end int, numbers bool) {
     i := 1
 
-    for e := b.lines.Front(); e != nil; e = e.Next() {
+    for l := e.buffer.Front(); l != nil; l = l.Next() {
         if i >= start && i <= end {
             if numbers {
-                fmt.Printf("%d\t%s\n", i, e.Value)
+                fmt.Printf("%d\t%s\n", i, l.Value)
             } else {
-                fmt.Println(e.Value)
+                fmt.Println(l.Value)
             }
 
-            b.currentLine = i
+            e.currentLine = i
         }
 
         i++
@@ -107,44 +107,44 @@ func readLines() *list.List {
     return input
 }
 
-func (b *Buffer) InsertBefore(other *list.List, line int) {
-    node := b.Index(line-1)
+func (e *Editor) InsertBefore(other *list.List, line int) {
+    node := e.Index(line-1)
 
-    for i, e := other.Len(), other.Back(); i > 0; i, e = i-1, e.Prev() {
-        b.lines.InsertBefore(e.Value, node)
+    for i, l := other.Len(), other.Back(); i > 0; i, l = i-1, l.Prev() {
+        e.buffer.InsertBefore(l.Value, node)
         node = node.Prev()
     }
 }
 
-func (b *Buffer) Insert(line int) {
+func (e *Editor) Insert(line int) {
     input := readLines()
-    b.InsertBefore(input, line)
+    e.InsertBefore(input, line)
 
-    b.modified = true
+    e.modified = true
 }
 
-func (b *Buffer) Delete(start, end int) {
-    curr := b.Index(start-1)
+func (e *Editor) Delete(start, end int) {
+    curr := e.Index(start-1)
 
     for i := start; i <= end; i++ {
         next := curr.Next()
-        b.lines.Remove(curr)
+        e.buffer.Remove(curr)
         curr = next
     }
 
-    b.modified = true
+    e.modified = true
 }
 
-func (b *Buffer) Error(msg string) {
-    b.err = msg
+func (e *Editor) Error(msg string) {
+    e.err = msg
     fmt.Println("?")
 }
 
-func (b *Buffer) Prompt() {
+func (e *Editor) Prompt() {
     text := readLine()
 
     if len(text) == 0 {
-        b.Error("invalid address")
+        e.Error("invalid address")
         return
     }
 
@@ -170,52 +170,53 @@ func (b *Buffer) Prompt() {
     }
 
     if start == 0 || end == 0 {
-        start = b.currentLine
-        end = b.currentLine
+        start = e.currentLine
+        end = e.currentLine
     }
 
-    if start > end || start < 0 || end > b.lines.Len() {
-        b.Error("invalid address")
+    if start > end || start < 0 || end > e.buffer.Len() {
+        e.Error("invalid address")
         return
     }
 
     switch command {
     case 'p':
-        b.Print(start, end, false)
+        e.Print(start, end, false)
     case 'n':
-        b.Print(start, end, true)
+        e.Print(start, end, true)
     case 'i':
-        b.Insert(end)
+        e.Insert(end)
     case 'd':
-        b.Delete(start, end)
+        e.Delete(start, end)
     case 'c':
-        b.Delete(start, end)
-        b.Insert(start)
+        e.Delete(start, end)
+        e.Insert(start)
     case 'h':
-        if len(b.err) > 0 {
-            fmt.Println(b.err)
+        if len(e.err) > 0 {
+            fmt.Println(e.err)
         }
     case 'q':
-        if b.modified {
-            b.Error("warning: file modified")
-            b.modified = false
+        if e.modified {
+            e.Error("warning: file modified")
+            e.modified = false
         } else {
             os.Exit(0)
         }
     case 'Q':
         os.Exit(0)
     default:
-        b.Error("unknown command")
+        e.Error("unknown command")
     }
 }
 
 func main() {
-    buffer := NewBuffer()
+    editor := NewEditor()
 
-    filename := "README.md"
-    buffer.Open(filename)
+    if len(os.Args) > 1 {
+        editor.Open(os.Args[1])
+    }
 
     for {
-        buffer.Prompt()
+        editor.Prompt()
     }
 }
