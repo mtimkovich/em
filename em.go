@@ -47,21 +47,26 @@ func (b *Buffer) Open(filename string) {
     }
 
     b.filename = filename
+    size := 0
 
     scanner := bufio.NewScanner(file)
 
     i := 1
     for scanner.Scan() {
-        b.lines.PushBack(scanner.Text())
+        text := scanner.Text()
+        size += len(text)
+        b.lines.PushBack(text)
         i++
     }
 
     b.currentLine = i - 1
 
     file.Close()
+
+    fmt.Println(size)
 }
 
-func (b *Buffer) Print(start int, end int, numbers bool) {
+func (b *Buffer) Print(start, end int, numbers bool) {
     i := 1
 
     for e := b.lines.Front(); e != nil; e = e.Next() {
@@ -79,25 +84,54 @@ func (b *Buffer) Print(start int, end int, numbers bool) {
     }
 }
 
-func readLines(multiline bool) string {
+func readLine() string {
+    scanner := bufio.NewScanner(os.Stdin)
+    scanner.Scan()
+    return scanner.Text()
+}
+
+func readLines() *list.List {
+    input := list.New()
+
     scanner := bufio.NewScanner(os.Stdin)
     for scanner.Scan() {
         text := scanner.Text()
 
-        if !multiline {
+        if text == "." {
             break
         }
+
+        input.PushBack(text)
     }
 
-    return text
+    return input
+}
+
+func (b *Buffer) InsertBefore(other *list.List, line int) {
+    node := b.Index(line-1)
+
+    for i, e := other.Len(), other.Back(); i > 0; i, e = i-1, e.Prev() {
+        b.lines.InsertBefore(e.Value, node)
+        node = node.Prev()
+    }
 }
 
 func (b *Buffer) Insert(line int) {
-    node := b.Index(line-1)
+    input := readLines()
+    b.InsertBefore(input, line)
 
-    text := readLines(false)
+    b.modified = true
+}
 
-    b.lines.InsertBefore(text, node)
+func (b *Buffer) Delete(start, end int) {
+    curr := b.Index(start-1)
+
+    for i := start; i <= end; i++ {
+        next := curr.Next()
+        b.lines.Remove(curr)
+        curr = next
+    }
+
     b.modified = true
 }
 
@@ -107,7 +141,12 @@ func (b *Buffer) Error(msg string) {
 }
 
 func (b *Buffer) Prompt() {
-    text := readLines(false)
+    text := readLine()
+
+    if len(text) == 0 {
+        b.Error("invalid address")
+        return
+    }
 
     command := rune(text[len(text)-1])
     nrange := text
@@ -147,6 +186,11 @@ func (b *Buffer) Prompt() {
         b.Print(start, end, true)
     case 'i':
         b.Insert(end)
+    case 'd':
+        b.Delete(start, end)
+    case 'c':
+        b.Delete(start, end)
+        b.Insert(start)
     case 'h':
         if len(b.err) > 0 {
             fmt.Println(b.err)
@@ -168,7 +212,7 @@ func (b *Buffer) Prompt() {
 func main() {
     buffer := NewBuffer()
 
-    filename := "justin.txt"
+    filename := "README.md"
     buffer.Open(filename)
 
     for {
