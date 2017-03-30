@@ -256,6 +256,7 @@ func (e *Editor) Prompt() {
         e.Delete(start, end)
     case 'c':
         e.Delete(start, end)
+        e.setCurrentLine(e.currentLine-1)
         e.Insert(start, true)
     case 'e':
         filename := strings.Split(text, " ")[1]
