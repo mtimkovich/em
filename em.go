@@ -13,7 +13,7 @@ import (
 type Editor struct {
     buffer *list.List
     filename string
-    currentLine int
+    line int
     modified bool
     err string
     commands map[rune]func(int, int, rune, string)
@@ -93,7 +93,7 @@ func (e *Editor) Open(filename string) {
         size += len(text) + 1
         e.buffer.PushBack(text)
 
-        e.currentLine = i
+        e.line = i
     }
 
     fmt.Println(size)
@@ -141,7 +141,7 @@ func (e *Editor) Print(start, end int, cmd rune, text string) {
                 fmt.Println(l.Value)
             }
 
-            e.currentLine = i
+            e.line = i
         }
     }
 }
@@ -175,8 +175,9 @@ func (e *Editor) InsertBefore(other *list.List, line int) {
     for i, l := other.Len(), other.Back(); i > 0; i, l = i-1, l.Prev() {
         e.buffer.InsertBefore(l.Value, node)
         node = node.Prev()
-        e.setCurrentLine(e.currentLine-1)
     }
+
+    e.setLine(e.line + other.Len() - 1)
 }
 
 func (e *Editor) InsertAfter(other *list.List, line int) {
@@ -185,13 +186,15 @@ func (e *Editor) InsertAfter(other *list.List, line int) {
     for i, l := 0, other.Front(); i < other.Len(); i, l = i+1, l.Next() {
         e.buffer.InsertAfter(l.Value, node)
         node = node.Next()
-        e.setCurrentLine(e.currentLine+1)
+        e.setLine(e.line+1)
     }
+
+    e.setLine(other.Len() + e.line)
 }
 
 func (e *Editor) Insert(start, end int, cmd rune, text string) {
     input := readLines()
-    e.setCurrentLine(end)
+    e.setLine(end)
 
     if e.buffer.Len() == 0 {
         e.buffer.PushBackList(input)
@@ -211,13 +214,13 @@ func (e *Editor) Insert(start, end int, cmd rune, text string) {
     e.modified = true
 }
 
-func (e *Editor) setCurrentLine(line int) {
+func (e *Editor) setLine(line int) {
     if line > e.buffer.Len() {
-        e.currentLine = e.buffer.Len()
+        e.line = e.buffer.Len()
     } else if line <= 0 {
-        e.currentLine = 1
+        e.line = 1
     } else {
-        e.currentLine = line
+        e.line = line
     }
 }
 
@@ -230,17 +233,13 @@ func (e *Editor) Delete(start, end int, cmd rune, text string) {
         curr = next
     }
 
-    e.setCurrentLine(start)
+    e.setLine(start)
     e.modified = true
 }
 
 func (e *Editor) Change(start, end int, cmd rune, text string) {
     e.Delete(start, end, cmd, text)
     e.Insert(start, end, 'i', text)
-
-    if e.currentLine != 1 {
-        e.setCurrentLine(e.currentLine+1)
-    }
 }
 
 func (e *Editor) Error(msg string) {
@@ -250,9 +249,9 @@ func (e *Editor) Error(msg string) {
 
 func (e *Editor) replaceMacros(text string) string {
     macros := map[string]int{
-        ".": e.currentLine,
-        "+": e.currentLine+1,
-        "-": e.currentLine-1,
+        ".": e.line,
+        "+": e.line+1,
+        "-": e.line-1,
         "$": e.buffer.Len(),
     }
 
@@ -275,12 +274,10 @@ func (e *Editor) Help(start, end int, cmd rune, text string) {
     }
 }
 
-func (e *Editor) Prompt() {
-    text := readLine()
-
+func (e *Editor) Parse(text string) (int, int, rune) {
     if len(text) == 0 {
         e.Error("invalid address")
-        return
+        return 0, 0, 0
     }
 
     text = e.replaceMacros(text)
@@ -316,12 +313,23 @@ func (e *Editor) Prompt() {
     }
 
     if start == 0 && end == 0 {
-        start = e.currentLine
-        end = e.currentLine
+        start = e.line
+        end = e.line
     }
 
     if start > end || start < 0 || end > e.buffer.Len() {
         e.Error("invalid address")
+        return 0, 0, 0
+    }
+
+    return start, end, command
+}
+
+func (e *Editor) Prompt() {
+    text := readLine()
+    start, end, command := e.Parse(text)
+
+    if command == 0 {
         return
     }
 
