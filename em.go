@@ -246,7 +246,10 @@ func (e *Editor) Delete(start, end int, cmd rune, text string) {
 func (e *Editor) Change(start, end int, cmd rune, text string) {
     e.Delete(start, end, cmd, text)
     e.Insert(start, end, 'i', text)
-    e.setCurrentLine(e.currentLine+1)
+
+    if e.currentLine != 1 {
+        e.setCurrentLine(e.currentLine+1)
+    }
 }
 
 func (e *Editor) Error(msg string) {
@@ -255,7 +258,7 @@ func (e *Editor) Error(msg string) {
 }
 
 func (e *Editor) replaceMacros(text string) string {
-    macros := map[string]int {
+    macros := map[string]int{
         ".": e.currentLine,
         "+": e.currentLine+1,
         "-": e.currentLine-1,
