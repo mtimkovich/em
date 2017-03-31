@@ -101,10 +101,6 @@ func (e *Editor) Open(filename string) {
 }
 
 func (e *Editor) Write(start, end int, cmd rune, text string) {
-    if e.isModified() {
-        return
-    }
-
     args := strings.Split(text, " ")
 
     if len(args) > 1 {
