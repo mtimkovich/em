@@ -13,7 +13,6 @@ import (
 type Editor struct {
     buffer *list.List
     filename string
-    newFilename string
     currentLine int
     modified bool
     err string
@@ -107,6 +106,11 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
         e.filename = args[0]
     }
 
+    if len(e.filename) == 0 {
+        e.Error("no current filename")
+        return
+    }
+
     file, err := os.Create(e.filename)
     defer file.Close()
 
@@ -189,15 +193,19 @@ func (e *Editor) Insert(start, end int, cmd rune, text string) {
     input := readLines()
     e.setCurrentLine(end)
 
-    if cmd == 'i' {
-        // edge case
-        if end >= e.buffer.Len() {
-            e.buffer.PushBackList(input)
-        } else {
-            e.InsertBefore(input, end)
-        }
+    if e.buffer.Len() == 0 {
+        e.buffer.PushBackList(input)
     } else {
-        e.InsertAfter(input, end)
+        if cmd == 'i' {
+            // edge case
+            if end >= e.buffer.Len() {
+                e.buffer.PushBackList(input)
+            } else {
+                e.InsertBefore(input, end)
+            }
+        } else {
+            e.InsertAfter(input, end)
+        }
     }
 
     e.modified = true
@@ -318,7 +326,6 @@ func (e *Editor) Prompt() {
     }
 
     if fn, ok := e.commands[command]; ok {
-
         fn(start, end, command, text)
     } else {
         e.Error("unknown command")
