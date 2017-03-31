@@ -17,14 +17,15 @@ type Editor struct {
     currentLine int
     modified bool
     err string
-    commands map[rune]func(int, int, rune)
+    commands map[rune]func(int, int, rune, string)
+    startCmds []rune
 }
 
 func NewEditor() *Editor {
     e := new(Editor)
     e.buffer = list.New()
 
-    e.commands = map[rune]func(int, int, rune){
+    e.commands = map[rune]func(int, int, rune, string){
         'p': e.Print,
         'n': e.Print,
         'i': e.Insert,
@@ -38,7 +39,19 @@ func NewEditor() *Editor {
         'Q': e.Quit,
     }
 
+    e.startCmds = []rune{'w', 'e'}
+
     return e
+}
+
+func (e *Editor) isStartCmd(check rune) bool {
+    for _, r := range e.startCmds {
+        if check == r {
+            return true
+        }
+    }
+
+    return false
 }
 
 func (e *Editor) isModified() bool {
@@ -61,13 +74,16 @@ func (e *Editor) Index(idx int) *list.Element {
     return nil
 }
 
-func (e *Editor) OpenWrapper(start, end int, cmd rune) {
-    if e.isModified() || len(e.newFilename) == 0 {
+func (e *Editor) OpenWrapper(start, end int, cmd rune, text string) {
+    args := strings.Split(text, " ")
+    filename := ""
+
+    if len(args) == 1 || e.isModified() {
         return
     }
 
-    e.Open(e.newFilename)
-    e.newFilename = ""
+    filename = args[1]
+    e.Open(filename)
 }
 
 func (e *Editor) Open(filename string) {
@@ -97,10 +113,15 @@ func (e *Editor) Open(filename string) {
     fmt.Println(size)
 }
 
-func (e *Editor) Write(start, end int, cmd rune) {
-    if len(e.newFilename) > 0 {
-        e.filename = e.newFilename
-        e.newFilename = ""
+func (e *Editor) Write(start, end int, cmd rune, text string) {
+    if e.isModified() {
+        return
+    }
+
+    args := strings.Split(text, " ")
+
+    if len(args) > 1 {
+        e.filename = args[0]
     }
 
     file, err := os.Create(e.filename)
@@ -124,7 +145,7 @@ func (e *Editor) Write(start, end int, cmd rune) {
     fmt.Println(size)
 }
 
-func (e *Editor) Print(start, end int, cmd rune) {
+func (e *Editor) Print(start, end int, cmd rune, text string) {
     for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
         if i >= start && i <= end {
             if cmd == 'n' {
@@ -181,7 +202,7 @@ func (e *Editor) InsertAfter(other *list.List, line int) {
     }
 }
 
-func (e *Editor) Insert(start, end int, cmd rune) {
+func (e *Editor) Insert(start, end int, cmd rune, text string) {
     input := readLines()
     e.setCurrentLine(end)
 
@@ -209,7 +230,7 @@ func (e *Editor) setCurrentLine(line int) {
     }
 }
 
-func (e *Editor) Delete(start, end int, cmd rune) {
+func (e *Editor) Delete(start, end int, cmd rune, text string) {
     curr := e.Index(start-1)
 
     for i := start; i <= end; i++ {
@@ -222,9 +243,9 @@ func (e *Editor) Delete(start, end int, cmd rune) {
     e.modified = true
 }
 
-func (e *Editor) Change(start, end int, cmd rune) {
-    e.Delete(start, end, cmd)
-    e.Insert(start, end, 'i')
+func (e *Editor) Change(start, end int, cmd rune, text string) {
+    e.Delete(start, end, cmd, text)
+    e.Insert(start, end, 'i', text)
     e.setCurrentLine(e.currentLine+1)
 }
 
@@ -248,13 +269,13 @@ func (e *Editor) replaceMacros(text string) string {
     return text
 }
 
-func (e *Editor) Quit(start, end int, cmd rune) {
+func (e *Editor) Quit(start, end int, cmd rune, text string) {
     if cmd == 'Q' || !e.isModified() {
         os.Exit(0)
     }
 }
 
-func (e *Editor) Help(start, end int, cmd rune) {
+func (e *Editor) Help(start, end int, cmd rune, text string) {
     if len(e.err) > 0 {
         fmt.Println(e.err)
     }
@@ -299,7 +320,7 @@ func (e *Editor) Prompt() {
             end = start
         }
     } else {
-        if len(text) > 1 && command != 'w' && command != 'e' {
+        if len(text) > 1 && !e.isStartCmd(command) {
             e.Error("invalid command")
             return
         }
@@ -316,12 +337,8 @@ func (e *Editor) Prompt() {
     }
 
     if fn, ok := e.commands[command]; ok {
-        args := strings.Split(text, " ")
-        if len(args) > 1 {
-            e.newFilename = args[1]
-        }
 
-        fn(start, end, command)
+        fn(start, end, command, text)
     } else {
         e.Error("unknown command")
     }
