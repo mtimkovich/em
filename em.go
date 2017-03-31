@@ -36,13 +36,10 @@ func (e *Editor) isModified() bool {
 }
 
 func (e *Editor) Index(idx int) *list.Element {
-    i := 0
-    for l := e.buffer.Front(); l != nil; l = l.Next() {
+    for i, l := 0, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
         if i == idx {
             return l
         }
-
-        i++
     }
 
     return nil
@@ -64,15 +61,13 @@ func (e *Editor) Open(filename string) {
 
     scanner := bufio.NewScanner(file)
 
-    i := 1
-    for scanner.Scan() {
+    for i := 1; scanner.Scan(); i++ {
         text := scanner.Text()
         size += len(text) + 1
         e.buffer.PushBack(text)
-        i++
-    }
 
-    e.currentLine = i - 1
+        e.currentLine = i
+    }
 
     fmt.Println(size)
 }
@@ -101,9 +96,7 @@ func (e *Editor) Write(filename string) {
 }
 
 func (e *Editor) Print(start, end int, numbers bool) {
-    i := 1
-
-    for l := e.buffer.Front(); l != nil; l = l.Next() {
+    for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
         if i >= start && i <= end {
             if numbers {
                 fmt.Printf("%d\t%s\n", i, l.Value)
@@ -113,8 +106,6 @@ func (e *Editor) Print(start, end int, numbers bool) {
 
             e.currentLine = i
         }
-
-        i++
     }
 }
 
@@ -202,6 +193,21 @@ func (e *Editor) Error(msg string) {
     fmt.Println("?")
 }
 
+func (e *Editor) replaceMacros(text string) string {
+    macros := map[string]int {
+        ".": e.currentLine,
+        "+": e.currentLine+1,
+        "-": e.currentLine-1,
+        "$": e.buffer.Len(),
+    }
+
+    for key, value := range macros {
+        text = strings.Replace(text, key, strconv.Itoa(value), -1)
+    }
+
+    return text
+}
+
 func (e *Editor) Prompt() {
     text := readLine()
 
@@ -209,6 +215,8 @@ func (e *Editor) Prompt() {
         e.Error("invalid address")
         return
     }
+
+    text = e.replaceMacros(text)
 
     command := rune(text[0])
     var start, end int
@@ -226,8 +234,14 @@ func (e *Editor) Prompt() {
         nums := strings.Split(nrange, ",")
 
         if len(nums) == 2 {
-            start, _ = strconv.Atoi(nums[0])
-            end, _ = strconv.Atoi(nums[1])
+            // if given only a comma, return all lines
+            if len(nrange) == 1 {
+                start = 1
+                end = e.buffer.Len()
+            } else {
+                start, _ = strconv.Atoi(nums[0])
+                end, _ = strconv.Atoi(nums[1])
+            }
         } else if len(nums) == 1 {
             start, _ = strconv.Atoi(nums[0])
             end = start
