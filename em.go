@@ -18,7 +18,6 @@ type Editor struct {
     modified bool
     err string
     commands map[rune]func(int, int, rune, string)
-    startCmds []rune
 }
 
 func NewEditor() *Editor {
@@ -39,19 +38,7 @@ func NewEditor() *Editor {
         'Q': e.Quit,
     }
 
-    e.startCmds = []rune{'w', 'e'}
-
     return e
-}
-
-func (e *Editor) isStartCmd(check rune) bool {
-    for _, r := range e.startCmds {
-        if check == r {
-            return true
-        }
-    }
-
-    return false
 }
 
 func (e *Editor) isModified() bool {
@@ -321,11 +308,6 @@ func (e *Editor) Prompt() {
         } else if len(nums) == 1 {
             start, _ = strconv.Atoi(nums[0])
             end = start
-        }
-    } else {
-        if len(text) > 1 && !e.isStartCmd(command) {
-            e.Error("invalid command")
-            return
         }
     }
 
