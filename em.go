@@ -183,10 +183,15 @@ func (e *Editor) InsertAfter(other *list.List, line int) {
 
 func (e *Editor) Insert(start, end int, cmd rune) {
     input := readLines()
-    e.currentLine = end
+    e.setCurrentLine(end)
 
     if cmd == 'i' {
-        e.InsertBefore(input, end)
+        // edge case
+        if end >= e.buffer.Len() {
+            e.buffer.PushBackList(input)
+        } else {
+            e.InsertBefore(input, end)
+        }
     } else {
         e.InsertAfter(input, end)
     }
@@ -219,8 +224,8 @@ func (e *Editor) Delete(start, end int, cmd rune) {
 
 func (e *Editor) Change(start, end int, cmd rune) {
     e.Delete(start, end, cmd)
-    e.setCurrentLine(e.currentLine+1)
     e.Insert(start, end, 'i')
+    e.setCurrentLine(e.currentLine+1)
 }
 
 func (e *Editor) Error(msg string) {
