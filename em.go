@@ -13,14 +13,30 @@ import (
 type Editor struct {
     buffer *list.List
     filename string
+    newFilename string
     currentLine int
     modified bool
     err string
+    commands map[rune]func(int, int, rune)
 }
 
 func NewEditor() *Editor {
     e := new(Editor)
     e.buffer = list.New()
+
+    e.commands = map[rune]func(int, int, rune){
+        'p': e.Print,
+        'n': e.Print,
+        'i': e.Insert,
+        'a': e.Insert,
+        'd': e.Delete,
+        'c': e.Change,
+        'e': e.OpenWrapper,
+        'w': e.Write,
+        'h': e.Help,
+        'q': e.Quit,
+        'Q': e.Quit,
+    }
 
     return e
 }
@@ -43,6 +59,15 @@ func (e *Editor) Index(idx int) *list.Element {
     }
 
     return nil
+}
+
+func (e *Editor) OpenWrapper(start, end int, cmd rune) {
+    if e.isModified() || len(e.newFilename) == 0 {
+        return
+    }
+
+    e.Open(e.newFilename)
+    e.newFilename = ""
 }
 
 func (e *Editor) Open(filename string) {
@@ -72,8 +97,13 @@ func (e *Editor) Open(filename string) {
     fmt.Println(size)
 }
 
-func (e *Editor) Write(filename string) {
-    file, err := os.Create(filename)
+func (e *Editor) Write(start, end int, cmd rune) {
+    if len(e.newFilename) > 0 {
+        e.filename = e.newFilename
+        e.newFilename = ""
+    }
+
+    file, err := os.Create(e.filename)
     defer file.Close()
 
     if err != nil {
@@ -82,7 +112,6 @@ func (e *Editor) Write(filename string) {
         return
     }
 
-    e.filename = filename
     size := 0
 
     for l := e.buffer.Front(); l != nil; l = l.Next() {
@@ -95,10 +124,10 @@ func (e *Editor) Write(filename string) {
     fmt.Println(size)
 }
 
-func (e *Editor) Print(start, end int, numbers bool) {
+func (e *Editor) Print(start, end int, cmd rune) {
     for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
         if i >= start && i <= end {
-            if numbers {
+            if cmd == 'n' {
                 fmt.Printf("%d\t%s\n", i, l.Value)
             } else {
                 fmt.Println(l.Value)
@@ -152,14 +181,14 @@ func (e *Editor) InsertAfter(other *list.List, line int) {
     }
 }
 
-func (e *Editor) Insert(line int, before bool) {
+func (e *Editor) Insert(start, end int, cmd rune) {
     input := readLines()
-    e.currentLine = line
+    e.currentLine = end
 
-    if before {
-        e.InsertBefore(input, line)
+    if cmd == 'i' {
+        e.InsertBefore(input, end)
     } else {
-        e.InsertAfter(input, line)
+        e.InsertAfter(input, end)
     }
 
     e.modified = true
@@ -175,7 +204,7 @@ func (e *Editor) setCurrentLine(line int) {
     }
 }
 
-func (e *Editor) Delete(start, end int) {
+func (e *Editor) Delete(start, end int, cmd rune) {
     curr := e.Index(start-1)
 
     for i := start; i <= end; i++ {
@@ -186,6 +215,12 @@ func (e *Editor) Delete(start, end int) {
 
     e.setCurrentLine(start)
     e.modified = true
+}
+
+func (e *Editor) Change(start, end int, cmd rune) {
+    e.Delete(start, end, cmd)
+    e.setCurrentLine(e.currentLine+1)
+    e.Insert(start, end, 'i')
 }
 
 func (e *Editor) Error(msg string) {
@@ -206,6 +241,18 @@ func (e *Editor) replaceMacros(text string) string {
     }
 
     return text
+}
+
+func (e *Editor) Quit(start, end int, cmd rune) {
+    if cmd == 'Q' || !e.isModified() {
+        os.Exit(0)
+    }
+}
+
+func (e *Editor) Help(start, end int, cmd rune) {
+    if len(e.err) > 0 {
+        fmt.Println(e.err)
+    }
 }
 
 func (e *Editor) Prompt() {
@@ -253,7 +300,7 @@ func (e *Editor) Prompt() {
         }
     }
 
-    if start == 0 || end == 0 {
+    if start == 0 && end == 0 {
         start = e.currentLine
         end = e.currentLine
     }
@@ -263,46 +310,14 @@ func (e *Editor) Prompt() {
         return
     }
 
-    switch command {
-    case 'p':
-        e.Print(start, end, false)
-    case 'n':
-        e.Print(start, end, true)
-    case 'i':
-        e.Insert(end, true)
-    case 'a':
-        e.Insert(end, false)
-    case 'd':
-        e.Delete(start, end)
-    case 'c':
-        e.Delete(start, end)
-        e.setCurrentLine(e.currentLine-1)
-        e.Insert(start, true)
-    case 'e':
-        filename := strings.Split(text, " ")[1]
-
-        if !e.isModified() {
-            e.Open(filename)
-        }
-    case 'w':
-        filename := e.filename
-
-        if len(text) > 1 {
-            filename = strings.Split(text, " ")[1]
+    if fn, ok := e.commands[command]; ok {
+        args := strings.Split(text, " ")
+        if len(args) > 1 {
+            e.newFilename = args[1]
         }
 
-        e.Write(filename)
-    case 'h':
-        if len(e.err) > 0 {
-            fmt.Println(e.err)
-        }
-    case 'q':
-        if !e.isModified() {
-            os.Exit(0)
-        }
-    case 'Q':
-        os.Exit(0)
-    default:
+        fn(start, end, command)
+    } else {
         e.Error("unknown command")
     }
 }
