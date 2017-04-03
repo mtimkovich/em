@@ -294,6 +294,8 @@ func (e *Editor) ReSub(start, end int, cmd rune, text string) {
             e.line = i
         }
     }
+
+    e.modified = true
 }
 
 func (e *Editor) Quit(start, end int, cmd rune, text string) {
