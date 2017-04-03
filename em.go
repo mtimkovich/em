@@ -5,9 +5,9 @@ import (
     "container/list"
     "fmt"
     "os"
+    "regexp"
     "strings"
     "strconv"
-    // "unicode"
 )
 
 type Editor struct {
@@ -31,6 +31,7 @@ func NewEditor() *Editor {
         'd': e.Delete,
         'c': e.Change,
         'e': e.OpenWrapper,
+        's': e.ReSub,
         'w': e.Write,
         'h': e.Help,
         'q': e.Quit,
@@ -260,6 +261,39 @@ func (e *Editor) replaceMacros(text string) string {
     }
 
     return text
+}
+
+func (e *Editor) ReSub(start, end int, cmd rune, text string) {
+    parts := strings.Split(text, "/")
+
+    if len(parts) != 4 {
+        e.Error("no match")
+        return
+    }
+
+    match := parts[1]
+    replace := parts[2]
+    flags := parts[3]
+
+    if strings.ContainsRune(flags, 'i') {
+        match = "(?i)" + match
+    }
+
+    re, err := regexp.Compile(match)
+
+    if err != nil {
+        e.Error("no match")
+        return
+    }
+
+    for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
+        if i >= start && i <= end {
+            line := l.Value.(string)
+            l.Value = re.ReplaceAllString(line, replace)
+
+            e.line = i
+        }
+    }
 }
 
 func (e *Editor) Quit(start, end int, cmd rune, text string) {
