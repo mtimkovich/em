@@ -7,7 +7,7 @@ import (
     "os"
     "strings"
     "strconv"
-    "unicode"
+    // "unicode"
 )
 
 type Editor struct {
@@ -274,64 +274,72 @@ func (e *Editor) Help(start, end int, cmd rune, text string) {
     }
 }
 
-func (e *Editor) Parse(text string) (int, int, rune) {
+func (e *Editor) Parse(text string) (int, int, string) {
     if len(text) == 0 {
         e.Error("invalid address")
-        return 0, 0, 0
+        return 0, 0, ""
     }
 
-    text = e.replaceMacros(text)
-
-    command := rune(text[0])
-    var start, end int
-
-    if !unicode.IsLetter(command) {
-        command = rune(text[len(text)-1])
-        nrange := text
-
-        if unicode.IsLetter(command) {
-            nrange = text[:len(text)-1]
-        } else {
-            command = 'p'
-        }
-
-        nums := strings.Split(nrange, ",")
-
-        if len(nums) == 2 {
-            // if given only a comma, return all lines
-            if len(nrange) == 1 {
-                start = 1
-                end = e.buffer.Len()
-            } else {
-                start, _ = strconv.Atoi(nums[0])
-                end, _ = strconv.Atoi(nums[1])
-            }
-        } else if len(nums) == 1 {
-            start, _ = strconv.Atoi(nums[0])
-            end = start
+    index := -1
+    for i, c := range text {
+        if _, ok := e.commands[c]; ok {
+            index = i
+            break
         }
     }
 
-    if start == 0 && end == 0 {
-        start = e.line
-        end = e.line
+    if index == 0 {
+        return e.line, e.line, text
     }
 
-    if start > end || start < 0 || end > e.buffer.Len() {
-        e.Error("invalid address")
-        return 0, 0, 0
+    var nrange, rest string
+
+    if index == -1 {
+        nrange = text
+    } else {
+        nrange = text[:index]
     }
 
-    return start, end, command
+    nrange = e.replaceMacros(nrange)
+
+    nums := strings.Split(nrange, ",")
+    start := 0
+    end := 0
+
+    if nrange == "," {
+        start = 1
+        end = e.buffer.Len()
+    } else if len(nums) == 2 {
+        start, _ = strconv.Atoi(nums[0])
+        end, _ = strconv.Atoi(nums[1])
+    } else if len(nums) == 1 {
+        start, _ = strconv.Atoi(nums[0])
+        end = start
+    }
+
+    if index == -1 {
+        rest = "p"
+    } else {
+        rest = text[index:]
+    }
+
+    return start, end, rest
 }
 
 func (e *Editor) Prompt() {
     text := readLine()
-    start, end, command := e.Parse(text)
+    start, end, text := e.Parse(text)
 
-    if command == 0 {
+    if text == "" {
         return
     }
+
+    if start < 1 || end > e.buffer.Len() {
+        e.Error("invalid address")
+        return
+    }
+
+    command := rune(text[0])
 
     if fn, ok := e.commands[command]; ok {
         fn(start, end, command, text)
