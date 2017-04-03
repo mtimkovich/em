@@ -353,7 +353,9 @@ func (e *Editor) Parse(text string) (int, int, string) {
         end = start
     }
 
-    if index == -1 {
+    if start == 0 && end == 0 {
+        // Invalid input
+    } else if index == -1 {
         rest = "p"
     } else {
         rest = text[index:]
@@ -367,6 +369,7 @@ func (e *Editor) Prompt() {
     start, end, text := e.Parse(text)
 
     if text == "" {
+        e.Error("unknown command")
         return
     }
 
