@@ -104,7 +104,7 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
     args := strings.Split(text, " ")
 
     if len(args) > 1 {
-        e.filename = args[0]
+        e.filename = args[1]
     }
 
     if len(e.filename) == 0 {
