@@ -22,6 +22,7 @@ type Editor struct {
 func NewEditor() *Editor {
     e := new(Editor)
     e.buffer = list.New()
+    e.line = 1
 
     e.commands = map[rune]func(int, int, rune, string){
         'p': e.Print,
@@ -199,11 +200,13 @@ func (e *Editor) Insert(start, end int, cmd rune, text string) {
 
     if e.buffer.Len() == 0 {
         e.buffer.PushBackList(input)
+        e.setLine(e.line + input.Len())
     } else {
         if cmd == 'i' {
             // edge case
             if end >= e.buffer.Len() {
                 e.buffer.PushBackList(input)
+                e.setLine(e.line + input.Len())
             } else {
                 e.InsertBefore(input, end)
             }
@@ -373,7 +376,9 @@ func (e *Editor) Prompt() {
         return
     }
 
-    if start < 1 || end > e.buffer.Len() {
+    // Special check when working on an empty buffer
+    if (e.buffer.Len() != 0 && start != 1) &&
+           (start < 1 || end > e.buffer.Len()) {
         e.Error("invalid address")
         return
     }
