@@ -378,7 +378,8 @@ func (e *Editor) Prompt() {
 
     // Special check when working on an empty buffer
     if (e.buffer.Len() != 0 && start != 1) &&
-           (start < 1 || end > e.buffer.Len()) {
+           (start < 1 || end > e.buffer.Len() ||
+           start > end) {
         e.Error("invalid address")
         return
     }
