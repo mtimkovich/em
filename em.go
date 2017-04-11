@@ -32,6 +32,7 @@ func NewEditor() *Editor {
         'd': e.Delete,
         'c': e.Change,
         'e': e.OpenWrapper,
+        'E': e.OpenWrapper,
         's': e.ReSub,
         'w': e.Write,
         'h': e.Help,
@@ -66,8 +67,14 @@ func (e *Editor) OpenWrapper(start, end int, cmd rune, text string) {
     args := strings.Split(text, " ")
     filename := ""
 
-    if len(args) == 1 || e.isModified() {
+    if len(args) == 1 {
         return
+    }
+
+    if cmd != 'E' {
+        if e.isModified() {
+            return
+        }
     }
 
     filename = args[1]
@@ -86,6 +93,7 @@ func (e *Editor) Open(filename string) {
 
     e.buffer = list.New()
     e.filename = filename
+    e.modified = false
     size := 0
 
     scanner := bufio.NewScanner(file)
