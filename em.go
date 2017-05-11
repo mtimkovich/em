@@ -20,7 +20,7 @@ type Editor struct {
 }
 
 func NewEditor() *Editor {
-    e := new(Editor)
+    e := &Editor{}
     e.buffer = list.New()
     e.line = 1
 
@@ -323,8 +323,7 @@ func (e *Editor) Help(start, end int, cmd rune, text string) {
 
 func (e *Editor) Parse(text string) (int, int, string) {
     if len(text) == 0 {
-        e.Error("invalid address")
-        return 0, 0, ""
+        return e.line+1, e.line+1, "p"
     }
 
     index := -1
