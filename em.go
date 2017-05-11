@@ -6,8 +6,8 @@ import (
     "fmt"
     "os"
     "regexp"
-    "strings"
     "strconv"
+    "strings"
 )
 
 type Editor struct {
