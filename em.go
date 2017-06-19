@@ -275,36 +275,72 @@ func (e *Editor) replaceMacros(text string) string {
 }
 
 func (e *Editor) ReSub(start, end int, cmd rune, text string) {
-    parts := strings.Split(text, "/")
+	sep := string(text[1])
+	if sep == " " || sep == "\t" || sep == "\n" || sep == "\r" {
+		e.Error("invalid pattern delimiter")
+		return
+	}
+	parts := strings.Split(text, sep)
+	lenparts := len(parts)
 
-    if len(parts) != 4 {
-        e.Error("no match")
-        return
-    }
+	if lenparts < 2 || lenparts > 4 { // not taking single 's' into account
+		e.Error("invalid command syntax")
+		return
+	}
 
     match := parts[1]
-    replace := parts[2]
-    flags := parts[3]
+	replace := ""
+	if lenparts > 2 {
+		replace = parts[2]
+	}
+	flags := ""
+	if lenparts > 3 {
+		flags = parts[3]
+	}
+	// debug
+	// fmt.Printf("DEBUG: match[%s], rep[%s], flags[%s]\n", match, replace, flags)
 
     if strings.ContainsRune(flags, 'i') {
         match = "(?i)" + match
     }
 
+	global := false
+	if strings.ContainsRune(flags, 'g') {
+		global = true
+	}
+
     re, err := regexp.Compile(match)
 
     if err != nil {
-        e.Error("no match")
+        e.Error("invalid regexp")
         return
     }
 
     for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
-        if i >= start && i <= end {
-            line := l.Value.(string)
-            l.Value = re.ReplaceAllString(line, replace)
+		if i > end {
+			break
+		}
+		if i >= start && i <= end {
+			line := l.Value.(string)
+			if global {
+				l.Value = re.ReplaceAllString(line, replace)
+			} else {
+				pos := re.FindStringIndex(line)
+				if pos != nil {
+					head := line[:pos[1]]
+					tail := line[pos[1]:]
+					l.Value = re.ReplaceAllString(head, replace) + tail
+				}
+			}
 
             e.line = i
         }
     }
+
+	if lenparts == 3 || strings.ContainsRune(flags, 'p') { // 'p' flag by default
+		// e.Print(end, end, 112, text) // 112 = "p"
+		e.Print(end, end, 'p', text)
+	}
 
     e.modified = true
 }
