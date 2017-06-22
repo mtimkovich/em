@@ -352,7 +352,7 @@ func (e *Editor) Parse(text string) (int, int, string) {
     start := 0
     end := 0
 
-    if nrange == "," {
+    if nrange == "," || nrange == "%" {
         start = 1
         end = e.buffer.Len()
     } else if len(nums) == 2 {
