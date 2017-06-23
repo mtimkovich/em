@@ -275,7 +275,10 @@ func (e *Editor) replaceMacros(text string) string {
 }
 
 func (e *Editor) ReSub(start, end int, cmd rune, text string) {
-	sep := string(text[1])
+	sep := "/"
+	if len(text) > 1 {
+		sep = string(text[1])
+	}
 	if sep == " " || sep == "\t" || sep == "\n" || sep == "\r" {
 		e.Error("invalid pattern delimiter")
 		return
@@ -297,8 +300,6 @@ func (e *Editor) ReSub(start, end int, cmd rune, text string) {
 	if lenparts > 3 {
 		flags = parts[3]
 	}
-	// debug
-	// fmt.Printf("DEBUG: match[%s], rep[%s], flags[%s]\n", match, replace, flags)
 
     if strings.ContainsRune(flags, 'i') {
         match = "(?i)" + match
@@ -338,7 +339,6 @@ func (e *Editor) ReSub(start, end int, cmd rune, text string) {
     }
 
 	if lenparts == 3 || strings.ContainsRune(flags, 'p') { // 'p' flag by default
-		// e.Print(end, end, 112, text) // 112 = "p"
 		e.Print(end, end, 'p', text)
 	}
 
