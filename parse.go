@@ -17,6 +17,8 @@ const SkipAddr = InvalidAddr + 1
 const NOLINE = InvalidAddr
 const NORUNE = 0xfffd
 
+var ErrNoMatch = errors.New("no match")
+
 // ----------
 // LineParser
 //
@@ -105,7 +107,7 @@ func (lp *LineParser) Match(r rune) bool {
 func (lp *LineParser) Parse() (start, end int, cmd rune, text string) {
 	ctx := NewContext(lp, lp.editor)
 	lp.ctx = ctx
-	count := addrRange(ctx)
+	_ = addrRange(ctx)
 	if lp.si >= len(lp.text) {
 		lp.text = append(lp.text, 'p') // default command
 	}
