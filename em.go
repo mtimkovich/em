@@ -3,6 +3,7 @@ package main
 import (
     "bufio"
     "container/list"
+    "errors"
     "fmt"
     "os"
     "regexp"
@@ -17,12 +18,14 @@ type Editor struct {
     modified bool
     err string
     commands map[rune]func(int, int, rune, string)
+	pattern *regexp.Regexp
 }
 
 func NewEditor() *Editor {
     e := &Editor{}
     e.buffer = list.New()
     e.line = 1
+	e.pattern = nil
 
     e.commands = map[rune]func(int, int, rune, string){
         'p': e.Print,
@@ -61,6 +64,74 @@ func (e *Editor) Index(idx int) *list.Element {
     }
 
     return nil
+}
+
+func (e *Editor) LastAddr() int {
+	return e.buffer.Len()
+}
+
+func (e *Editor) CurrentAddr() int {
+	return e.line
+}
+
+// Search uses Editor.pattern for matching
+func (e *Editor) Search(fwd bool) (num int, err error) {
+	// helper
+	cyclicNextElem := func (el *list.Element, l *list.List, i int, fwd bool) (e *list.Element, idx int) {
+		idx = i
+		if fwd {
+			e = el.Next()
+			idx++
+			if e == nil {
+				e = l.Front()
+				idx = 1
+			}
+		} else {
+			e = el.Prev()
+			idx--
+			if e == nil {
+				e = l.Back()
+				idx = l.Len()
+			}
+		}
+		return
+	}
+
+	// check previous regexp pattern
+	if e.pattern == nil {
+		return InvalidAddr, errors.New("no previous pattern")
+	}
+
+	rx := e.pattern
+	num = e.line
+
+	start := e.Index(num-1)
+	if start == nil {
+		return InvalidAddr, errors.New("wrong line number")
+	}
+
+	// Start searching from this line
+	fromLine := start
+
+	// we change fromLine because we do not match the line we start at
+	fromLine, num = cyclicNextElem(start, e.buffer, num, fwd)
+
+	current := fromLine
+	for {
+		value := current.Value.(string)
+		// check for match
+		if rx.MatchString(value) {
+			return num, nil
+		}
+
+		// if no match get next line
+		current, num = cyclicNextElem(current, e.buffer, num, fwd)
+
+		// we have wrapped around without matching
+		if current == start {
+			return InvalidAddr, ErrNoMatch
+		}
+	} // for
 }
 
 func (e *Editor) OpenWrapper(start, end int, cmd rune, text string) {
@@ -412,7 +483,9 @@ func (e *Editor) Parse(text string) (int, int, string) {
 
 func (e *Editor) Prompt() {
     text := readLine()
-    start, end, text := e.Parse(text)
+	p := NewLineParser(e, text)
+
+	start, end, cmd, text := p.Parse()
 
     if text == "" {
         e.Error("unknown command")
@@ -427,10 +500,8 @@ func (e *Editor) Prompt() {
         return
     }
 
-    command := rune(text[0])
-
-    if fn, ok := e.commands[command]; ok {
-        fn(start, end, command, text)
+    if fn, ok := e.commands[cmd]; ok {
+        fn(start, end, cmd, text)
     } else {
         e.Error("unknown command")
     }
