@@ -105,6 +105,10 @@ func (lp *LineParser) Match(r rune) bool {
 }
 
 func (lp *LineParser) Parse() (start, end int, cmd rune, text string) {
+	if len(lp.text) == 0 { // just Enter
+		addr := lp.editor.CurrentAddr() + 1
+		return addr, addr, 'p', "p"
+	}
 	ctx := NewContext(lp, lp.editor)
 	lp.ctx = ctx
 	_ = addrRange(ctx)
@@ -205,7 +209,6 @@ func nextAddr(ctx *Context) (int, bool) { // addr, ok
 					addr = ctx.e.CurrentAddr()
 				}
 			case '/', '?':
-				// TODO dont work
 				if  !first {
 					invalidAddr(ctx)
 					return addr, false
