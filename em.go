@@ -24,7 +24,7 @@ type Editor struct {
 func NewEditor() *Editor {
     e := &Editor{}
     e.buffer = list.New()
-    e.line = 1
+    e.line = 0
 	e.pattern = nil
 
     e.commands = map[rune]func(int, int, rune, string){
@@ -72,6 +72,10 @@ func (e *Editor) LastAddr() int {
 
 func (e *Editor) CurrentAddr() int {
 	return e.line
+}
+
+func (e *Editor) IsBufferEmpty() bool {
+	return e.buffer.Len() <= 0
 }
 
 // Search uses Editor.pattern for matching
@@ -214,6 +218,10 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
 }
 
 func (e *Editor) Print(start, end int, cmd rune, text string) {
+	if e.IsBufferEmpty() {
+		e.Error("invalid address")
+		return
+	}
     for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
         if i >= start && i <= end {
             if cmd == 'n' {
@@ -308,7 +316,15 @@ func (e *Editor) setLine(line int) {
 }
 
 func (e *Editor) Delete(start, end int, cmd rune, text string) {
+	if e.IsBufferEmpty() {
+		e.Error("invalid address")
+		return
+	}
     curr := e.Index(start-1)
+	if curr == nil {
+		e.Error("invalid address")
+		return
+	}
 
     for i := start; i <= end; i++ {
         next := curr.Next()
@@ -321,6 +337,10 @@ func (e *Editor) Delete(start, end int, cmd rune, text string) {
 }
 
 func (e *Editor) Change(start, end int, cmd rune, text string) {
+	if e.IsBufferEmpty() {
+		e.Error("invalid address")
+		return
+	}
     e.Delete(start, end, cmd, text)
     e.Insert(start, end, 'i', text)
 }
