@@ -11,6 +11,23 @@ import (
     "strings"
 )
 
+func ExplicitEscapes(s string) (result string) {
+	result = s
+	replacements := map[string]string{
+		"\\": "\\\\",
+		"\t": "\\t",
+		"\a": "\\a",
+		"\b": "\\b",
+		"\r": "\\r",
+		"\n": "\\n",
+	}
+	for k, v := range(replacements) {
+		result = strings.Replace(result, k, v, -1)
+	}
+	result += "$"
+	return
+}
+
 type Editor struct {
     buffer *list.List
     filename string
@@ -30,6 +47,7 @@ func NewEditor() *Editor {
     e.commands = map[rune]func(int, int, rune, string){
         'p': e.Print,
         'n': e.Print,
+		'l': e.Print,
         'i': e.Insert,
         'a': e.Insert,
         'd': e.Delete,
@@ -226,9 +244,12 @@ func (e *Editor) Print(start, end int, cmd rune, text string) {
         if i >= start && i <= end {
             if cmd == 'n' {
                 fmt.Printf("%d\t%s\n", i, l.Value)
-            } else {
-                fmt.Println(l.Value)
-            }
+            } else if cmd == 'l' {
+				text := l.Value.(string)
+                fmt.Println(ExplicitEscapes(text))
+			} else {
+				fmt.Println(l.Value)
+			}
 
             e.line = i
         }
