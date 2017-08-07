@@ -54,6 +54,7 @@ func NewEditor() *Editor {
         'c': e.Change,
         'e': e.OpenWrapper,
         'E': e.OpenWrapper,
+		'f': e.Filename,
         's': e.ReSub,
         'w': e.Write,
         'h': e.Help,
@@ -252,6 +253,21 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
 	if args[0] == "wq" {
 		e.Quit(start, end, 'q', "")
 	}
+}
+
+func (e *Editor) Filename(start, end int, cmd rune, text string) {
+	args := strings.Split(text, " ")
+	if len(args) <= 1 {
+		// Just print current filename if any
+		if len(e.filename) == 0 {
+			e.Error("no current filename")
+			return
+		}
+	} else {
+		// Set new global filename
+		e.filename = strings.Join(args[1:len(args)], " ")
+	}
+	fmt.Println(e.filename)
 }
 
 func (e *Editor) Print(start, end int, cmd rune, text string) {
