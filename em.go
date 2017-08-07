@@ -205,11 +205,25 @@ func (e *Editor) Open(filename string) {
 func (e *Editor) Write(start, end int, cmd rune, text string) {
     args := strings.Split(text, " ")
 
+	if len(args[0]) > 1 && args[0] != "wq" {
+		e.Error("unexpected command suffix")
+		return
+	}
+
+	filename := e.filename
+
+	// if filename is given
     if len(args) > 1 {
-        e.filename = args[1]
+        filename = args[1]
     }
 
-    if len(e.filename) == 0 {
+	// if there was no previous filename set it
+	if len(e.filename) == 0 && len(filename) > 0 {
+		e.filename = filename
+	}
+
+	// if neither previous nor new filename exist - error
+    if len(filename) == 0 {
         e.Error("no current filename")
         return
     }
@@ -233,6 +247,11 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
 
     e.modified = false
     fmt.Println(size)
+
+	// wq shortcut
+	if args[0] == "wq" {
+		e.Quit(start, end, 'q', "")
+	}
 }
 
 func (e *Editor) Print(start, end int, cmd rune, text string) {
