@@ -12,4 +12,4 @@ Max Timkovich and Esgorhannoth
 
 ## License
 
-em is licensed under the 2-clause BSD License - see the LICENSE file for details.
+em is licensed under the Simplified BSD License.
