@@ -55,6 +55,7 @@ func NewEditor() *Editor {
         'e': e.OpenWrapper,
         'E': e.OpenWrapper,
 		'f': e.Filename,
+		'j': e.Join,
         's': e.ReSub,
         'w': e.Write,
         'h': e.Help,
@@ -268,6 +269,44 @@ func (e *Editor) Filename(start, end int, cmd rune, text string) {
 		e.filename = strings.Join(args[1:len(args)], " ")
 	}
 	fmt.Println(e.filename)
+}
+
+func (e *Editor) Join(start, end int, cmd rune, text string) {
+	if e.IsBufferEmpty() {
+		e.Error("invalid address")
+		return
+	}
+
+	// if e.g. `3j` or just `j` given
+	// make it `3,+1j` or `.,+1j`
+	if start == end {
+		end += 1
+		// `0j` and `$j` are invalid
+		if start < 1 || end > e.LastAddr() {
+			e.Error("invalid address")
+			return
+		}
+	}
+
+	joined := ""
+
+	// collect lines to join
+	for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
+		if i >= start && i <= end {
+			joined += l.Value.(string)
+		}
+	}
+
+	// insert joined line before `start`
+	node := e.Index(start-1)
+	e.buffer.InsertBefore(joined, node)
+
+	// remove joined lines
+	// +1 because after inserting joined lines
+	// other lines have shifted
+	e.Delete(start+1, end+1, 'd', "")
+	e.setLine(start)
+
 }
 
 func (e *Editor) Print(start, end int, cmd rune, text string) {
