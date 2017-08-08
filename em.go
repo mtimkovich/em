@@ -11,6 +11,23 @@ import (
     "strings"
 )
 
+func ExplicitEscapes(s string) (result string) {
+	result = s
+	replacements := map[string]string{
+		"\\": "\\\\",
+		"\t": "\\t",
+		"\a": "\\a",
+		"\b": "\\b",
+		"\r": "\\r",
+		"\n": "\\n",
+	}
+	for k, v := range(replacements) {
+		result = strings.Replace(result, k, v, -1)
+	}
+	result += "$"
+	return
+}
+
 type Editor struct {
     buffer *list.List
     filename string
@@ -30,12 +47,15 @@ func NewEditor() *Editor {
     e.commands = map[rune]func(int, int, rune, string){
         'p': e.Print,
         'n': e.Print,
+		'l': e.Print,
         'i': e.Insert,
         'a': e.Insert,
         'd': e.Delete,
         'c': e.Change,
         'e': e.OpenWrapper,
         'E': e.OpenWrapper,
+		'f': e.Filename,
+		'j': e.Join,
         's': e.ReSub,
         'w': e.Write,
         'h': e.Help,
@@ -187,11 +207,25 @@ func (e *Editor) Open(filename string) {
 func (e *Editor) Write(start, end int, cmd rune, text string) {
     args := strings.Split(text, " ")
 
+	if len(args[0]) > 1 && args[0] != "wq" {
+		e.Error("unexpected command suffix")
+		return
+	}
+
+	filename := e.filename
+
+	// if filename is given
     if len(args) > 1 {
-        e.filename = args[1]
+        filename = args[1]
     }
 
-    if len(e.filename) == 0 {
+	// if there was no previous filename set it
+	if len(e.filename) == 0 && len(filename) > 0 {
+		e.filename = filename
+	}
+
+	// if neither previous nor new filename exist - error
+    if len(filename) == 0 {
         e.Error("no current filename")
         return
     }
@@ -215,6 +249,64 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
 
     e.modified = false
     fmt.Println(size)
+
+	// wq shortcut
+	if args[0] == "wq" {
+		e.Quit(start, end, 'q', "")
+	}
+}
+
+func (e *Editor) Filename(start, end int, cmd rune, text string) {
+	args := strings.Split(text, " ")
+	if len(args) <= 1 {
+		// Just print current filename if any
+		if len(e.filename) == 0 {
+			e.Error("no current filename")
+			return
+		}
+	} else {
+		// Set new global filename
+		e.filename = strings.Join(args[1:len(args)], " ")
+	}
+	fmt.Println(e.filename)
+}
+
+func (e *Editor) Join(start, end int, cmd rune, text string) {
+	if e.IsBufferEmpty() {
+		e.Error("invalid address")
+		return
+	}
+
+	// if e.g. `3j` or just `j` given
+	// make it `3,+1j` or `.,+1j`
+	if start == end {
+		end += 1
+		// `0j` and `$j` are invalid
+		if start < 1 || end > e.LastAddr() {
+			e.Error("invalid address")
+			return
+		}
+	}
+
+	joined := ""
+
+	// collect lines to join
+	for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
+		if i >= start && i <= end {
+			joined += l.Value.(string)
+		}
+	}
+
+	// insert joined line before `start`
+	node := e.Index(start-1)
+	e.buffer.InsertBefore(joined, node)
+
+	// remove joined lines
+	// +1 because after inserting joined lines
+	// other lines have shifted
+	e.Delete(start+1, end+1, 'd', "")
+	e.setLine(start)
+
 }
 
 func (e *Editor) Print(start, end int, cmd rune, text string) {
@@ -226,9 +318,12 @@ func (e *Editor) Print(start, end int, cmd rune, text string) {
         if i >= start && i <= end {
             if cmd == 'n' {
                 fmt.Printf("%d\t%s\n", i, l.Value)
-            } else {
-                fmt.Println(l.Value)
-            }
+            } else if cmd == 'l' {
+				text := l.Value.(string)
+                fmt.Println(ExplicitEscapes(text))
+			} else {
+				fmt.Println(l.Value)
+			}
 
             e.line = i
         }
