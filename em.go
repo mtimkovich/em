@@ -543,59 +543,6 @@ func (e *Editor) Help(start, end int, cmd rune, text string) {
     }
 }
 
-func (e *Editor) Parse(text string) (int, int, string) {
-    if len(text) == 0 {
-        return e.line+1, e.line+1, "p"
-    }
-
-    index := -1
-    for i, c := range text {
-        if _, ok := e.commands[c]; ok {
-            index = i
-            break
-        }
-    }
-
-    if index == 0 {
-        return e.line, e.line, text
-    }
-
-    var nrange, rest string
-
-    if index == -1 {
-        nrange = text
-    } else {
-        nrange = text[:index]
-    }
-
-    nrange = e.replaceMacros(nrange)
-
-    nums := strings.Split(nrange, ",")
-    start := 0
-    end := 0
-
-    if nrange == "," || nrange == "%" {
-        start = 1
-        end = e.buffer.Len()
-    } else if len(nums) == 2 {
-        start, _ = strconv.Atoi(nums[0])
-        end, _ = strconv.Atoi(nums[1])
-    } else if len(nums) == 1 {
-        start, _ = strconv.Atoi(nums[0])
-        end = start
-    }
-
-    if start == 0 && end == 0 {
-        // Invalid input
-    } else if index == -1 {
-        rest = "p"
-    } else {
-        rest = text[index:]
-    }
-
-    return start, end, rest
-}
-
 func (e *Editor) Prompt() {
     text := readLine()
 	p := NewLineParser(e, text)
