@@ -36,6 +36,7 @@ type Editor struct {
     err string
     commands map[rune]func(int, int, rune, string)
 	pattern *regexp.Regexp
+	addrCnt int
 }
 
 func NewEditor() *Editor {
@@ -43,6 +44,7 @@ func NewEditor() *Editor {
     e.buffer = list.New()
     e.line = 0
 	e.pattern = nil
+	e.addrCnt = 0
 
     e.commands = map[rune]func(int, int, rune, string){
         'p': e.Print,
@@ -230,7 +232,7 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
         return
     }
 
-    file, err := os.Create(e.filename)
+    file, err := os.Create(filename)
     defer file.Close()
 
     if err != nil {
@@ -239,12 +241,27 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
         return
     }
 
+	// if address count is 0
+	from := 1
+	to   := e.LastAddr()
+
+	if e.addrCnt >= 2 {
+		from = start
+		to = end
+	}
+	if e.addrCnt == 1 {
+		from = start
+		to = from
+	}
+
     size := 0
 
-    for l := e.buffer.Front(); l != nil; l = l.Next() {
-        text := l.Value.(string)
-        count, _ := file.WriteString(text + "\n")
-        size += count
+    for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
+		if i >= from && i <= to {
+			text := l.Value.(string)
+			count, _ := file.WriteString(text + "\n")
+			size += count
+		}
     }
 
     e.modified = false
@@ -547,7 +564,13 @@ func (e *Editor) Prompt() {
     text := readLine()
 	p := NewLineParser(e, text)
 
-	start, end, cmd, text := p.Parse()
+	start, end, cmd, text, addrCnt, err := p.Parse()
+	if err != nil {
+		e.Error(err.Error())
+		return
+	}
+
+	e.addrCnt = addrCnt
 
     if text == "" {
         e.Error("unknown command")
