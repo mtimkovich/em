@@ -104,18 +104,18 @@ func (lp *LineParser) Match(r rune) bool {
 	return false
 }
 
-func (lp *LineParser) Parse() (start, end int, cmd rune, text string) {
+func (lp *LineParser) Parse() (start, end int, cmd rune, text string, count int, err error) {
 	if len(lp.text) == 0 { // just Enter
 		addr := lp.editor.CurrentAddr() + 1
-		return addr, addr, 'p', "p"
+		return addr, addr, 'p', "p", 0, nil
 	}
 	ctx := NewContext(lp, lp.editor)
 	lp.ctx = ctx
-	_ = addrRange(ctx)
+	count = addrRange(ctx)
 	if lp.si >= len(lp.text) {
 		lp.text = append(lp.text, 'p') // default command
 	}
-	return ctx.fstAddr, ctx.sndAddr, lp.text[lp.si], string(lp.text[lp.si:])
+	return ctx.fstAddr, ctx.sndAddr, lp.text[lp.si], string(lp.text[lp.si:]), count, ctx.err
 }
 
 // Instead of global state in C
@@ -125,6 +125,7 @@ type Context struct {
 	addrCnt int
 	lp *LineParser
 	e  *Editor
+	err error
 }
 
 func NewContext(lp *LineParser, e *Editor) *Context {
@@ -134,11 +135,12 @@ func NewContext(lp *LineParser, e *Editor) *Context {
 		addrCnt: 0,
 		lp: lp,
 		e:  e,
+		err: nil,
 	}
 }
 
 func invalidAddr(ctx *Context) {
-	ctx.e.Error("invalid address")
+	ctx.err = errors.New("invalid address")
 }
 
 func skipBlanks(ctx *Context) {
@@ -155,6 +157,7 @@ func isDigit(r rune) bool {
 
 func nextAddr(ctx *Context) (int, bool) { // addr, ok
 	skipBlanks(ctx)
+	mi := ctx.lp.mi
 
 	addr := ctx.e.CurrentAddr()
 	first := true
@@ -244,6 +247,10 @@ func nextAddr(ctx *Context) (int, bool) { // addr, ok
 				}
 				fallthrough
 			default:
+				// if no addr given at all
+				if mi == ctx.lp.si {
+					return InvalidAddr, false
+				}
 				if addr < 0 || addr > ctx.e.LastAddr() {
 					invalidAddr(ctx)
 					return addr, false
