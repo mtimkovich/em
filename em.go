@@ -1,14 +1,14 @@
 package main
 
 import (
-    "bufio"
-    "container/list"
-    "errors"
-    "fmt"
-    "os"
-    "regexp"
-    "strconv"
-    "strings"
+	"bufio"
+	"container/list"
+	"errors"
+	"fmt"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 func ExplicitEscapes(s string) (result string) {
@@ -21,7 +21,7 @@ func ExplicitEscapes(s string) (result string) {
 		"\r": "\\r",
 		"\n": "\\n",
 	}
-	for k, v := range(replacements) {
+	for k, v := range replacements {
 		result = strings.Replace(result, k, v, -1)
 	}
 	result += "$"
@@ -29,63 +29,63 @@ func ExplicitEscapes(s string) (result string) {
 }
 
 type Editor struct {
-    buffer *list.List
-    filename string
-    line int
-    modified bool
-    err string
-    commands map[rune]func(int, int, rune, string)
-	pattern *regexp.Regexp
-	addrCnt int
+	buffer   *list.List
+	filename string
+	line     int
+	modified bool
+	err      string
+	commands map[rune]func(int, int, rune, string)
+	pattern  *regexp.Regexp
+	addrCnt  int
 }
 
 func NewEditor() *Editor {
-    e := &Editor{}
-    e.buffer = list.New()
-    e.line = 0
+	e := &Editor{}
+	e.buffer = list.New()
+	e.line = 0
 	e.pattern = nil
 	e.addrCnt = 0
 
-    e.commands = map[rune]func(int, int, rune, string){
-        'p': e.Print,
-        'n': e.Print,
+	e.commands = map[rune]func(int, int, rune, string){
+		'p': e.Print,
+		'n': e.Print,
 		'l': e.Print,
-        'i': e.Insert,
-        'a': e.Insert,
-        'd': e.Delete,
-        'c': e.Change,
-        'e': e.OpenWrapper,
-        'E': e.OpenWrapper,
+		'i': e.Insert,
+		'a': e.Insert,
+		'd': e.Delete,
+		'c': e.Change,
+		'e': e.OpenWrapper,
+		'E': e.OpenWrapper,
 		'f': e.Filename,
 		'j': e.Join,
-        's': e.ReSub,
-        'w': e.Write,
-        'h': e.Help,
-        'q': e.Quit,
-        'Q': e.Quit,
-    }
+		's': e.ReSub,
+		'w': e.Write,
+		'h': e.Help,
+		'q': e.Quit,
+		'Q': e.Quit,
+	}
 
-    return e
+	return e
 }
 
 func (e *Editor) isModified() bool {
-    if e.modified {
-        e.Error("warning: file modified")
-        e.modified = false
-        return true
-    } else {
-        return false
-    }
+	if e.modified {
+		e.Error("warning: file modified")
+		e.modified = false
+		return true
+	} else {
+		return false
+	}
 }
 
 func (e *Editor) Index(idx int) *list.Element {
-    for i, l := 0, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
-        if i == idx {
-            return l
-        }
-    }
+	for i, l := 0, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
+		if i == idx {
+			return l
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func (e *Editor) LastAddr() int {
@@ -103,7 +103,7 @@ func (e *Editor) IsBufferEmpty() bool {
 // Search uses Editor.pattern for matching
 func (e *Editor) Search(fwd bool) (num int, err error) {
 	// helper
-	cyclicNextElem := func (el *list.Element, l *list.List, i int, fwd bool) (e *list.Element, idx int) {
+	cyclicNextElem := func(el *list.Element, l *list.List, i int, fwd bool) (e *list.Element, idx int) {
 		idx = i
 		if fwd {
 			e = el.Next()
@@ -131,7 +131,7 @@ func (e *Editor) Search(fwd bool) (num int, err error) {
 	rx := e.pattern
 	num = e.line
 
-	start := e.Index(num-1)
+	start := e.Index(num - 1)
 	if start == nil {
 		return InvalidAddr, errors.New("wrong line number")
 	}
@@ -161,53 +161,53 @@ func (e *Editor) Search(fwd bool) (num int, err error) {
 }
 
 func (e *Editor) OpenWrapper(start, end int, cmd rune, text string) {
-    args := strings.Split(text, " ")
-    filename := ""
+	args := strings.Split(text, " ")
+	filename := ""
 
-    if len(args) == 1 {
-        return
-    }
+	if len(args) == 1 {
+		return
+	}
 
-    if cmd != 'E' {
-        if e.isModified() {
-            return
-        }
-    }
+	if cmd != 'E' {
+		if e.isModified() {
+			return
+		}
+	}
 
-    filename = args[1]
-    e.Open(filename)
+	filename = args[1]
+	e.Open(filename)
 }
 
 func (e *Editor) Open(filename string) {
-    file, err := os.Open(filename)
-    defer file.Close()
+	file, err := os.Open(filename)
+	defer file.Close()
 
-    if err != nil {
-        fmt.Println(err)
-        e.Error("cannot open input file")
-        return
-    }
+	if err != nil {
+		fmt.Println(err)
+		e.Error("cannot open input file")
+		return
+	}
 
-    e.buffer = list.New()
-    e.filename = filename
-    e.modified = false
-    size := 0
+	e.buffer = list.New()
+	e.filename = filename
+	e.modified = false
+	size := 0
 
-    scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(file)
 
-    for i := 1; scanner.Scan(); i++ {
-        text := scanner.Text()
-        size += len(text) + 1
-        e.buffer.PushBack(text)
+	for i := 1; scanner.Scan(); i++ {
+		text := scanner.Text()
+		size += len(text) + 1
+		e.buffer.PushBack(text)
 
-        e.line = i
-    }
+		e.line = i
+	}
 
-    fmt.Println(size)
+	fmt.Println(size)
 }
 
 func (e *Editor) Write(start, end int, cmd rune, text string) {
-    args := strings.Split(text, " ")
+	args := strings.Split(text, " ")
 
 	if len(args[0]) > 1 && args[0] != "wq" {
 		e.Error("unexpected command suffix")
@@ -217,9 +217,9 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
 	filename := e.filename
 
 	// if filename is given
-    if len(args) > 1 {
-        filename = args[1]
-    }
+	if len(args) > 1 {
+		filename = args[1]
+	}
 
 	// if there was no previous filename set it
 	if len(e.filename) == 0 && len(filename) > 0 {
@@ -227,23 +227,23 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
 	}
 
 	// if neither previous nor new filename exist - error
-    if len(filename) == 0 {
-        e.Error("no current filename")
-        return
-    }
+	if len(filename) == 0 {
+		e.Error("no current filename")
+		return
+	}
 
-    file, err := os.Create(filename)
-    defer file.Close()
+	file, err := os.Create(filename)
+	defer file.Close()
 
-    if err != nil {
-        fmt.Println(err)
-        e.Error("cannot write to file")
-        return
-    }
+	if err != nil {
+		fmt.Println(err)
+		e.Error("cannot write to file")
+		return
+	}
 
 	// if address count is 0
 	from := 1
-	to   := e.LastAddr()
+	to := e.LastAddr()
 
 	if e.addrCnt >= 2 {
 		from = start
@@ -254,18 +254,18 @@ func (e *Editor) Write(start, end int, cmd rune, text string) {
 		to = from
 	}
 
-    size := 0
+	size := 0
 
-    for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
+	for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
 		if i >= from && i <= to {
 			text := l.Value.(string)
 			count, _ := file.WriteString(text + "\n")
 			size += count
 		}
-    }
+	}
 
-    e.modified = false
-    fmt.Println(size)
+	e.modified = false
+	fmt.Println(size)
 
 	// wq shortcut
 	if args[0] == "wq" {
@@ -315,7 +315,7 @@ func (e *Editor) Join(start, end int, cmd rune, text string) {
 	}
 
 	// insert joined line before `start`
-	node := e.Index(start-1)
+	node := e.Index(start - 1)
 	e.buffer.InsertBefore(joined, node)
 
 	// remove joined lines
@@ -331,100 +331,100 @@ func (e *Editor) Print(start, end int, cmd rune, text string) {
 		e.Error("invalid address")
 		return
 	}
-    for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
-        if i >= start && i <= end {
-            if cmd == 'n' {
-                fmt.Printf("%d\t%s\n", i, l.Value)
-            } else if cmd == 'l' {
+	for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
+		if i >= start && i <= end {
+			if cmd == 'n' {
+				fmt.Printf("%d\t%s\n", i, l.Value)
+			} else if cmd == 'l' {
 				text := l.Value.(string)
-                fmt.Println(ExplicitEscapes(text))
+				fmt.Println(ExplicitEscapes(text))
 			} else {
 				fmt.Println(l.Value)
 			}
 
-            e.line = i
-        }
-    }
+			e.line = i
+		}
+	}
 }
 
 func readLine() string {
-    scanner := bufio.NewScanner(os.Stdin)
-    scanner.Scan()
-    return scanner.Text()
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	return scanner.Text()
 }
 
 func readLines() *list.List {
-    input := list.New()
+	input := list.New()
 
-    scanner := bufio.NewScanner(os.Stdin)
-    for scanner.Scan() {
-        text := scanner.Text()
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		text := scanner.Text()
 
-        if text == "." {
-            break
-        }
+		if text == "." {
+			break
+		}
 
-        input.PushBack(text)
-    }
+		input.PushBack(text)
+	}
 
-    return input
+	return input
 }
 
 func (e *Editor) InsertBefore(other *list.List, line int) {
-    node := e.Index(line-1)
+	node := e.Index(line - 1)
 
-    for i, l := other.Len(), other.Back(); i > 0; i, l = i-1, l.Prev() {
-        e.buffer.InsertBefore(l.Value, node)
-        node = node.Prev()
-    }
+	for i, l := other.Len(), other.Back(); i > 0; i, l = i-1, l.Prev() {
+		e.buffer.InsertBefore(l.Value, node)
+		node = node.Prev()
+	}
 
-    e.setLine(e.line + other.Len() - 1)
+	e.setLine(e.line + other.Len() - 1)
 }
 
 func (e *Editor) InsertAfter(other *list.List, line int) {
-    node := e.Index(line-1)
+	node := e.Index(line - 1)
 
-    for i, l := 0, other.Front(); i < other.Len(); i, l = i+1, l.Next() {
-        e.buffer.InsertAfter(l.Value, node)
-        node = node.Next()
-        e.setLine(e.line+1)
-    }
+	for i, l := 0, other.Front(); i < other.Len(); i, l = i+1, l.Next() {
+		e.buffer.InsertAfter(l.Value, node)
+		node = node.Next()
+		e.setLine(e.line + 1)
+	}
 
-    e.setLine(other.Len() + e.line)
+	e.setLine(other.Len() + e.line)
 }
 
 func (e *Editor) Insert(start, end int, cmd rune, text string) {
-    input := readLines()
-    e.setLine(end)
+	input := readLines()
+	e.setLine(end)
 
-    if e.buffer.Len() == 0 {
-        e.buffer.PushBackList(input)
-        e.setLine(e.line + input.Len())
-    } else {
-        if cmd == 'i' {
-            // edge case
-            if end >= e.buffer.Len() {
-                e.buffer.PushBackList(input)
-                e.setLine(e.line + input.Len())
-            } else {
-                e.InsertBefore(input, end)
-            }
-        } else {
-            e.InsertAfter(input, end)
-        }
-    }
+	if e.buffer.Len() == 0 {
+		e.buffer.PushBackList(input)
+		e.setLine(e.line + input.Len())
+	} else {
+		if cmd == 'i' {
+			// edge case
+			if end >= e.buffer.Len() {
+				e.buffer.PushBackList(input)
+				e.setLine(e.line + input.Len())
+			} else {
+				e.InsertBefore(input, end)
+			}
+		} else {
+			e.InsertAfter(input, end)
+		}
+	}
 
-    e.modified = true
+	e.modified = true
 }
 
 func (e *Editor) setLine(line int) {
-    if line > e.buffer.Len() {
-        e.line = e.buffer.Len()
-    } else if line <= 0 {
-        e.line = 1
-    } else {
-        e.line = line
-    }
+	if line > e.buffer.Len() {
+		e.line = e.buffer.Len()
+	} else if line <= 0 {
+		e.line = 1
+	} else {
+		e.line = line
+	}
 }
 
 func (e *Editor) Delete(start, end int, cmd rune, text string) {
@@ -432,20 +432,20 @@ func (e *Editor) Delete(start, end int, cmd rune, text string) {
 		e.Error("invalid address")
 		return
 	}
-    curr := e.Index(start-1)
+	curr := e.Index(start - 1)
 	if curr == nil {
 		e.Error("invalid address")
 		return
 	}
 
-    for i := start; i <= end; i++ {
-        next := curr.Next()
-        e.buffer.Remove(curr)
-        curr = next
-    }
+	for i := start; i <= end; i++ {
+		next := curr.Next()
+		e.buffer.Remove(curr)
+		curr = next
+	}
 
-    e.setLine(start)
-    e.modified = true
+	e.setLine(start)
+	e.modified = true
 }
 
 func (e *Editor) Change(start, end int, cmd rune, text string) {
@@ -453,28 +453,28 @@ func (e *Editor) Change(start, end int, cmd rune, text string) {
 		e.Error("invalid address")
 		return
 	}
-    e.Delete(start, end, cmd, text)
-    e.Insert(start, end, 'i', text)
+	e.Delete(start, end, cmd, text)
+	e.Insert(start, end, 'i', text)
 }
 
 func (e *Editor) Error(msg string) {
-    e.err = msg
-    fmt.Println("?")
+	e.err = msg
+	fmt.Println("?")
 }
 
 func (e *Editor) replaceMacros(text string) string {
-    macros := map[string]int{
-        ".": e.line,
-        "+": e.line+1,
-        "-": e.line-1,
-        "$": e.buffer.Len(),
-    }
+	macros := map[string]int{
+		".": e.line,
+		"+": e.line + 1,
+		"-": e.line - 1,
+		"$": e.buffer.Len(),
+	}
 
-    for key, value := range macros {
-        text = strings.Replace(text, key, strconv.Itoa(value), -1)
-    }
+	for key, value := range macros {
+		text = strings.Replace(text, key, strconv.Itoa(value), -1)
+	}
 
-    return text
+	return text
 }
 
 func (e *Editor) ReSub(start, end int, cmd rune, text string) {
@@ -494,7 +494,7 @@ func (e *Editor) ReSub(start, end int, cmd rune, text string) {
 		return
 	}
 
-    match := parts[1]
+	match := parts[1]
 	replace := ""
 	if lenparts > 2 {
 		replace = parts[2]
@@ -504,23 +504,23 @@ func (e *Editor) ReSub(start, end int, cmd rune, text string) {
 		flags = parts[3]
 	}
 
-    if strings.ContainsRune(flags, 'i') {
-        match = "(?i)" + match
-    }
+	if strings.ContainsRune(flags, 'i') {
+		match = "(?i)" + match
+	}
 
 	global := false
 	if strings.ContainsRune(flags, 'g') {
 		global = true
 	}
 
-    re, err := regexp.Compile(match)
+	re, err := regexp.Compile(match)
 
-    if err != nil {
-        e.Error("invalid regexp")
-        return
-    }
+	if err != nil {
+		e.Error("invalid regexp")
+		return
+	}
 
-    for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
+	for i, l := 1, e.buffer.Front(); l != nil; i, l = i+1, l.Next() {
 		if i > end {
 			break
 		}
@@ -537,31 +537,31 @@ func (e *Editor) ReSub(start, end int, cmd rune, text string) {
 				}
 			}
 
-            e.line = i
-        }
-    }
+			e.line = i
+		}
+	}
 
 	if lenparts == 3 || strings.ContainsRune(flags, 'p') { // 'p' flag by default
 		e.Print(end, end, 'p', text)
 	}
 
-    e.modified = true
+	e.modified = true
 }
 
 func (e *Editor) Quit(start, end int, cmd rune, text string) {
-    if cmd == 'Q' || !e.isModified() {
-        os.Exit(0)
-    }
+	if cmd == 'Q' || !e.isModified() {
+		os.Exit(0)
+	}
 }
 
 func (e *Editor) Help(start, end int, cmd rune, text string) {
-    if len(e.err) > 0 {
-        fmt.Println(e.err)
-    }
+	if len(e.err) > 0 {
+		fmt.Println(e.err)
+	}
 }
 
 func (e *Editor) Prompt() {
-    text := readLine()
+	text := readLine()
 	p := NewLineParser(e, text)
 
 	start, end, cmd, text, addrCnt, err := p.Parse()
@@ -572,34 +572,34 @@ func (e *Editor) Prompt() {
 
 	e.addrCnt = addrCnt
 
-    if text == "" {
-        e.Error("unknown command")
-        return
-    }
+	if text == "" {
+		e.Error("unknown command")
+		return
+	}
 
-    // Special check when working on an empty buffer
-    if (e.buffer.Len() != 0 && start != 1) &&
-           (start < 1 || end > e.buffer.Len() ||
-           start > end) {
-        e.Error("invalid address")
-        return
-    }
+	// Special check when working on an empty buffer
+	if (e.buffer.Len() != 0 && start != 1) &&
+		(start < 1 || end > e.buffer.Len() ||
+			start > end) {
+		e.Error("invalid address")
+		return
+	}
 
-    if fn, ok := e.commands[cmd]; ok {
-        fn(start, end, cmd, text)
-    } else {
-        e.Error("unknown command")
-    }
+	if fn, ok := e.commands[cmd]; ok {
+		fn(start, end, cmd, text)
+	} else {
+		e.Error("unknown command")
+	}
 }
 
 func main() {
-    editor := NewEditor()
+	editor := NewEditor()
 
-    if len(os.Args) > 1 {
-        editor.Open(os.Args[1])
-    }
+	if len(os.Args) > 1 {
+		editor.Open(os.Args[1])
+	}
 
-    for {
-        editor.Prompt()
-    }
+	for {
+		editor.Prompt()
+	}
 }

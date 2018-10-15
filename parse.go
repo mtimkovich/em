@@ -123,9 +123,9 @@ type Context struct {
 	fstAddr int
 	sndAddr int
 	addrCnt int
-	lp *LineParser
-	e  *Editor
-	err error
+	lp      *LineParser
+	e       *Editor
+	err     error
 }
 
 func NewContext(lp *LineParser, e *Editor) *Context {
@@ -133,9 +133,9 @@ func NewContext(lp *LineParser, e *Editor) *Context {
 		fstAddr: InvalidAddr,
 		sndAddr: InvalidAddr,
 		addrCnt: 0,
-		lp: lp,
-		e:  e,
-		err: nil,
+		lp:      lp,
+		e:       e,
+		err:     nil,
 	}
 }
 
@@ -212,7 +212,7 @@ func nextAddr(ctx *Context) (int, bool) { // addr, ok
 					addr = ctx.e.CurrentAddr()
 				}
 			case '/', '?':
-				if  !first {
+				if !first {
 					invalidAddr(ctx)
 					return addr, false
 				}
@@ -300,7 +300,7 @@ func readInt(c *Context) (int, bool) { // n, ok
 	cur := c.lp.si
 	for {
 		r, ok := c.lp.LookAhead()
-		if !ok || !isDigit(r){
+		if !ok || !isDigit(r) {
 			break
 		}
 		c.lp.Consume()
